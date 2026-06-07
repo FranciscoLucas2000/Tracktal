@@ -1,0 +1,55 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "powershell -ExecutionPolicy Bypass -File \"C:\\Users\\Francisco\\Projetos\\Tracktal\\scripts\\update-linear-docs.ps1\"",
+            "shell": "powershell",
+            "async": true,
+            "statusMessage": "Updating Linear docs...",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(uv *)",
+      "Bash(uvicorn *)",
+      "Bash(dbt *)",
+      "Bash(prefect *)",
+      "Bash(alembic *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(black *)",
+      "Bash(tsc *)",
+      "Bash(eslint *)",
+      "Bash(powershell *)",
+      "Bash(mkdir *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(rm *)",
+      "Bash(chmod *)",
+      "Bash(touch *)",
+      "Bash(echo *)",
+      "Bash(curl *)",
+      "Bash(rtk *)"
+    ]
+  }
+}
