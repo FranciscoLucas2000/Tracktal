@@ -2,4 +2,4 @@
 nixPkgs = ["python312", "uv"]
 
 [phases.install]
-cmds = []
+cmds = ["uv venv && uv pip install -e ."]
