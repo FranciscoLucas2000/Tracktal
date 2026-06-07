@@ -1,0 +1,10 @@
+{
+  "name": "@tracktal/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc --noEmit"
+  }
+}
