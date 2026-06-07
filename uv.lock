@@ -3096,7 +3096,7 @@ wheels = [
 [[package]]
 name = "tracktal-api"
 version = "0.1.0"
-source = { virtual = "apps/api" }
+source = { editable = "apps/api" }
 dependencies = [
     { name = "alembic" },
     { name = "anthropic" },
@@ -3133,7 +3133,7 @@ dev = [
 [[package]]
 name = "tracktal-pipelines"
 version = "0.1.0"
-source = { virtual = "pipelines" }
+source = { editable = "pipelines" }
 dependencies = [
     { name = "anthropic" },
     { name = "dbt-core" },
