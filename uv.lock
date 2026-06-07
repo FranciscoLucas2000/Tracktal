@@ -3145,6 +3145,11 @@ dependencies = [
     { name = "supabase" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=0.26.0" },
@@ -3156,6 +3161,9 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "supabase", specifier = ">=2.4.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.0.0" }]
 
 [[package]]
 name = "typer"
