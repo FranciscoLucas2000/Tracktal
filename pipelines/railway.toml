@@ -1,7 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "cd ../ && uv sync --package tracktal-pipelines --no-dev"
 
 [deploy]
-startCommand = "cd ../ && uv run --package tracktal-pipelines prefect worker start --pool railway-pool --type process"
+startCommand = "uv run prefect worker start --pool railway-pool --type process"
 restartPolicyType = "on_failure"
