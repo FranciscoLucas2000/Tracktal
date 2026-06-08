@@ -183,7 +183,7 @@ Closes TRA-8" \
   --head feature/TRA-8-vercel-deployment
 ```
 
-Replace `TRA-XX` with the actual issue ID created in Task 2.
+TRA-43 was created in Task 2 — use that ID.
 
 - [ ] **Step 3: Post PR link to Linear**
 

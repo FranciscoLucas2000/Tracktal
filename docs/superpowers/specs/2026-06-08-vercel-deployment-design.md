@@ -64,7 +64,7 @@ All configuration lives in Vercel dashboard project settings. Nothing is committ
 
 `tracktal.com` is not yet purchased. Domain wiring is excluded from this ticket and tracked in a separate Linear issue:
 
-**"TRA-XX: Connect tracktal.com domain to Vercel via Cloudflare DNS"**
+**TRA-43: Connect tracktal.com domain to Vercel via Cloudflare DNS**
 
 When the domain is purchased, the steps are:
 1. Add `tracktal.com` in Vercel dashboard → Domains
