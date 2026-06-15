@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 import httpx
 from tenacity import (
@@ -43,6 +44,12 @@ class ScraperAPIClient:
             await self._client.aclose()
             self._client = None
         self._semaphore = None
+
+    @classmethod
+    def from_env(cls) -> "ScraperAPIClient":
+        api_key = os.environ["SCRAPERAPI_KEY"]
+        max_concurrency = int(os.getenv("SCRAPERAPI_MAX_CONCURRENCY", "5"))
+        return cls(api_key=api_key, max_concurrency=max_concurrency)
 
     async def scrape(
         self,

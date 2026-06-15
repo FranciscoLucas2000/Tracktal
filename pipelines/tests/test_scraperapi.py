@@ -213,3 +213,42 @@ async def test_scrape_batch_empty_urls_returns_empty():
     client = make_client()
     results = await client.scrape_batch([])
     assert results == []
+
+
+import os
+
+
+# --- from_env() ---
+
+def test_from_env_reads_api_key(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SCRAPERAPI_KEY", "my-secret-key")
+    monkeypatch.delenv("SCRAPERAPI_MAX_CONCURRENCY", raising=False)
+
+    client = ScraperAPIClient.from_env()
+
+    assert client._api_key == "my-secret-key"
+
+
+def test_from_env_default_concurrency(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SCRAPERAPI_KEY", "key")
+    monkeypatch.delenv("SCRAPERAPI_MAX_CONCURRENCY", raising=False)
+
+    client = ScraperAPIClient.from_env()
+
+    assert client._max_concurrency == 5
+
+
+def test_from_env_custom_concurrency(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SCRAPERAPI_KEY", "key")
+    monkeypatch.setenv("SCRAPERAPI_MAX_CONCURRENCY", "10")
+
+    client = ScraperAPIClient.from_env()
+
+    assert client._max_concurrency == 10
+
+
+def test_from_env_missing_key_raises(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("SCRAPERAPI_KEY", raising=False)
+
+    with pytest.raises(KeyError):
+        ScraperAPIClient.from_env()
