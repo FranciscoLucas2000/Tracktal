@@ -1,6 +1,6 @@
 CREATE TABLE skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT UNIQUE NOT NULL,
+  name TEXT UNIQUE NOT NULL CHECK (name = lower(name)),
   category TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
