@@ -9,3 +9,7 @@ CREATE TABLE scrape_runs (
   error_message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX scrape_runs_source_started_at_idx ON scrape_runs (source, started_at DESC);
+CREATE INDEX scrape_runs_failed_idx ON scrape_runs (status)
+  WHERE status = 'failed';
