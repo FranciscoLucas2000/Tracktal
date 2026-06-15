@@ -14,7 +14,11 @@ from tracktal_pipelines.scraperapi import (
 # --- Helpers ---
 
 def make_client(api_key: str = "test-key", max_concurrency: int = 5) -> ScraperAPIClient:
-    """Return ScraperAPIClient with mocked httpx internals (skip context manager)."""
+    """Return a ScraperAPIClient with _client replaced by AsyncMock and _semaphore pre-built.
+
+    Bypasses __aenter__ so tests can call scrape()/scrape_batch() directly.
+    Assign client._client.get return_value or side_effect to control HTTP responses.
+    """
     client = ScraperAPIClient(api_key=api_key, max_concurrency=max_concurrency)
     client._client = AsyncMock()
     client._semaphore = asyncio.Semaphore(max_concurrency)
@@ -66,8 +70,11 @@ async def test_context_manager_creates_client_and_semaphore():
 
 
 async def test_context_manager_closes_client_on_exit():
-    async with ScraperAPIClient(api_key="key") as client:
-        inner_client = client._client
+    mock_http_client = AsyncMock()
 
-    # After exit, _client should be None
+    async with ScraperAPIClient(api_key="key") as client:
+        # Replace the real client with our mock to verify aclose() is called
+        client._client = mock_http_client
+
     assert client._client is None
+    mock_http_client.aclose.assert_awaited_once()

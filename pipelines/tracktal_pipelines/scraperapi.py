@@ -5,7 +5,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-SCRAPERAPI_BASE_URL = "http://api.scraperapi.com/"
+SCRAPERAPI_BASE_URL = "https://api.scraperapi.com/"
 
 
 class ScraperAPIError(Exception):
@@ -36,3 +36,4 @@ class ScraperAPIClient:
         if self._client:
             await self._client.aclose()
             self._client = None
+        self._semaphore = None
