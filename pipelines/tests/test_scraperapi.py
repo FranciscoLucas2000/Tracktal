@@ -248,5 +248,17 @@ def test_from_env_custom_concurrency(monkeypatch: pytest.MonkeyPatch):
 def test_from_env_missing_key_raises(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("SCRAPERAPI_KEY", raising=False)
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ScraperAPIError, match="SCRAPERAPI_KEY"):
         ScraperAPIClient.from_env()
+
+
+async def test_scrape_outside_context_manager_raises():
+    client = ScraperAPIClient(api_key="key")
+    with pytest.raises(RuntimeError, match="context manager"):
+        await client.scrape("https://example.com")
+
+
+async def test_scrape_batch_outside_context_manager_raises():
+    client = ScraperAPIClient(api_key="key")
+    with pytest.raises(RuntimeError, match="context manager"):
+        await client.scrape_batch(["https://example.com"])

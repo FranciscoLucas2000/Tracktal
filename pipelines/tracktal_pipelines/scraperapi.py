@@ -47,7 +47,9 @@ class ScraperAPIClient:
 
     @classmethod
     def from_env(cls) -> "ScraperAPIClient":
-        api_key = os.environ["SCRAPERAPI_KEY"]
+        api_key = os.environ.get("SCRAPERAPI_KEY")
+        if not api_key:
+            raise ScraperAPIError("SCRAPERAPI_KEY environment variable is not set")
         max_concurrency = int(os.getenv("SCRAPERAPI_MAX_CONCURRENCY", "5"))
         return cls(api_key=api_key, max_concurrency=max_concurrency)
 
@@ -58,6 +60,8 @@ class ScraperAPIClient:
         country_code: str | None = None,
         **extra_params: object,
     ) -> str:
+        if self._client is None:
+            raise RuntimeError("ScraperAPIClient must be used as an async context manager")
         params: dict[str, str] = {"api_key": self._api_key, "url": url}
         if render:
             params["render"] = "true"
@@ -89,6 +93,9 @@ class ScraperAPIClient:
         urls: list[str],
         **kwargs: object,
     ) -> list[str | None]:
+        if self._semaphore is None:
+            raise RuntimeError("ScraperAPIClient must be used as an async context manager")
+
         async def _scrape_one(url: str) -> str | None:
             async with self._semaphore:
                 try:
