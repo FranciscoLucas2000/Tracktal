@@ -179,8 +179,8 @@ async def test_scrape_batch_returns_none_for_failed_url():
     assert results[1] is None
 
 
-async def test_scrape_batch_respects_concurrency_limit():
-    """Semaphore limits concurrent calls — verify all URLs processed."""
+async def test_scrape_batch_processes_all_urls():
+    """All URLs in the batch are processed; semaphore is exercised."""
     client = make_client(max_concurrency=2)
     client._client.get = AsyncMock(return_value=mock_response(200, "ok"))
 
@@ -206,6 +206,10 @@ async def test_scrape_batch_preserves_url_order():
 
     results = await client.scrape_batch(["https://a.com", "https://b.com", "https://c.com"])
 
-    assert len(results) == 3
-    # All are non-None strings
-    assert all(isinstance(r, str) for r in results)
+    assert results == ["result-1", "result-2", "result-3"]
+
+
+async def test_scrape_batch_empty_urls_returns_empty():
+    client = make_client()
+    results = await client.scrape_batch([])
+    assert results == []
