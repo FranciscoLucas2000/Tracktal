@@ -78,3 +78,77 @@ async def test_context_manager_closes_client_on_exit():
 
     assert client._client is None
     mock_http_client.aclose.assert_awaited_once()
+
+
+from unittest.mock import patch
+
+
+# --- scrape() ---
+
+async def test_scrape_success_returns_text():
+    client = make_client()
+    client._client.get = AsyncMock(return_value=mock_response(200, "<html>OK</html>"))
+
+    result = await client.scrape("https://example.com")
+
+    assert result == "<html>OK</html>"
+
+
+async def test_scrape_builds_correct_params():
+    client = make_client(api_key="abc123")
+    client._client.get = AsyncMock(return_value=mock_response(200, "ok"))
+
+    await client.scrape("https://example.com", render=True, country_code="pt")
+
+    call_kwargs = client._client.get.call_args
+    params = call_kwargs.kwargs["params"]
+    assert params["api_key"] == "abc123"
+    assert params["url"] == "https://example.com"
+    assert params["render"] == "true"
+    assert params["country_code"] == "pt"
+
+
+async def test_scrape_400_raises_scraperapi_error():
+    client = make_client()
+    client._client.get = AsyncMock(return_value=mock_response(403))
+
+    with pytest.raises(ScraperAPIError):
+        await client.scrape("https://example.com")
+
+
+async def test_scrape_429_raises_rate_limit_error_after_retries():
+    client = make_client()
+    client._client.get = AsyncMock(return_value=mock_response(429))
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        with pytest.raises(ScraperAPIRateLimitError):
+            await client.scrape("https://example.com")
+
+    assert client._client.get.call_count == 3
+
+
+async def test_scrape_500_raises_server_error_after_retries():
+    client = make_client()
+    client._client.get = AsyncMock(return_value=mock_response(500))
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        with pytest.raises(ScraperAPIServerError):
+            await client.scrape("https://example.com")
+
+    assert client._client.get.call_count == 3
+
+
+async def test_scrape_retries_then_succeeds():
+    client = make_client()
+    client._client.get = AsyncMock(
+        side_effect=[
+            mock_response(429),
+            mock_response(200, "<html>OK</html>"),
+        ]
+    )
+
+    with patch("asyncio.sleep", new_callable=AsyncMock):
+        result = await client.scrape("https://example.com")
+
+    assert result == "<html>OK</html>"
+    assert client._client.get.call_count == 2
