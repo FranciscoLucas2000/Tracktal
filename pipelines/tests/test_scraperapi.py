@@ -1,4 +1,5 @@
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -213,9 +214,6 @@ async def test_scrape_batch_empty_urls_returns_empty():
     client = make_client()
     results = await client.scrape_batch([])
     assert results == []
-
-
-import os
 
 
 # --- from_env() ---
