@@ -1,10 +1,14 @@
 """Manual connectivity smoke test for ScraperAPI. Run: uv run python scripts/test_scraperapi.py"""
 import asyncio
+import os
 
 from tracktal_pipelines.scraperapi import ScraperAPIClient, ScraperAPIError
 
 
 async def main() -> None:
+    if not os.environ.get("SCRAPERAPI_KEY"):
+        print("FAIL — SCRAPERAPI_KEY env var is not set")
+        return
     async with ScraperAPIClient.from_env() as client:
         try:
             html = await client.scrape("https://httpbin.org/get")
