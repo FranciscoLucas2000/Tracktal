@@ -263,7 +263,7 @@ feature/TRA-17-claude-normalisation
 When working on this project:
 1. Always use the stack defined above. Do not suggest alternatives unless there is a critical reason.
 2. Python code goes in `/pipelines/` or `/apps/api/`. TypeScript goes in `/apps/web/`.
-3. All database changes must have a corresponding migration file in `/apps/api/migrations/`.
+3. All database changes must have a corresponding migration file in `supabase/migrations/`. Files use timestamp prefix format: `YYYYMMDDHHmmss_description.sql`. Apply with `supabase migration up` (incremental) or `supabase db reset` (full local reset). Push to remote Supabase with `supabase db push`. The `/apps/api/migrations/` folder is unused for DB schema.
 4. All new Prefect flows go in `/pipelines/flows/`. Schedule in `/pipelines/schedules.py`.
 5. All dbt models follow the staging → intermediate → marts layer structure above.
 6. When creating Linear tickets via MCP, link to the correct epic and set priority as specified.
