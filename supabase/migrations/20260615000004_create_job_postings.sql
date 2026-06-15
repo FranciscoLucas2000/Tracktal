@@ -1,11 +1,3 @@
-CREATE OR REPLACE FUNCTION trigger_set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 CREATE TABLE job_postings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source TEXT NOT NULL CHECK (source IN ('adzuna', 'indeed', 'linkedin', 'eures')),
@@ -38,10 +30,11 @@ CREATE TABLE job_postings (
   UNIQUE (source, external_id)
 );
 
-CREATE INDEX ON job_postings (source, scraped_at);
-CREATE INDEX ON job_postings (is_normalised);
-CREATE INDEX ON job_postings (company_id);
-CREATE INDEX ON job_postings (location_id);
+CREATE INDEX job_postings_source_scraped_at_idx ON job_postings (source, scraped_at);
+CREATE INDEX job_postings_company_id_idx ON job_postings (company_id);
+CREATE INDEX job_postings_location_id_idx ON job_postings (location_id);
+CREATE INDEX job_postings_unnormalised_idx ON job_postings (scraped_at)
+  WHERE is_normalised = FALSE;
 
 CREATE TRIGGER set_updated_at
   BEFORE UPDATE ON job_postings
