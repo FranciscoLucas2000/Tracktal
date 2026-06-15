@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -80,9 +80,6 @@ async def test_context_manager_closes_client_on_exit():
     mock_http_client.aclose.assert_awaited_once()
 
 
-from unittest.mock import patch
-
-
 # --- scrape() ---
 
 async def test_scrape_success_returns_text():
@@ -114,6 +111,8 @@ async def test_scrape_400_raises_scraperapi_error():
 
     with pytest.raises(ScraperAPIError):
         await client.scrape("https://example.com")
+
+    assert client._client.get.call_count == 1
 
 
 async def test_scrape_429_raises_rate_limit_error_after_retries():
