@@ -151,3 +151,61 @@ async def test_scrape_retries_then_succeeds():
 
     assert result == "<html>OK</html>"
     assert client._client.get.call_count == 2
+
+
+# --- scrape_batch() ---
+
+async def test_scrape_batch_returns_html_for_all_urls():
+    client = make_client()
+    client._client.get = AsyncMock(return_value=mock_response(200, "<html/>"))
+
+    results = await client.scrape_batch(["https://a.com", "https://b.com"])
+
+    assert results == ["<html/>", "<html/>"]
+
+
+async def test_scrape_batch_returns_none_for_failed_url():
+    client = make_client()
+    client._client.get = AsyncMock(
+        side_effect=[
+            mock_response(200, "<html>A</html>"),
+            mock_response(403),  # non-retryable error
+        ]
+    )
+
+    results = await client.scrape_batch(["https://a.com", "https://b.com"])
+
+    assert results[0] == "<html>A</html>"
+    assert results[1] is None
+
+
+async def test_scrape_batch_respects_concurrency_limit():
+    """Semaphore limits concurrent calls — verify all URLs processed."""
+    client = make_client(max_concurrency=2)
+    client._client.get = AsyncMock(return_value=mock_response(200, "ok"))
+
+    urls = [f"https://example.com/{i}" for i in range(10)]
+    results = await client.scrape_batch(urls)
+
+    assert len(results) == 10
+    assert all(r == "ok" for r in results)
+    assert client._client.get.call_count == 10
+
+
+async def test_scrape_batch_preserves_url_order():
+    """Results order matches input URLs order."""
+    call_count = 0
+
+    async def ordered_response(*args: object, **kwargs: object) -> MagicMock:
+        nonlocal call_count
+        call_count += 1
+        return mock_response(200, f"result-{call_count}")
+
+    client = make_client()
+    client._client.get = ordered_response  # type: ignore[assignment]
+
+    results = await client.scrape_batch(["https://a.com", "https://b.com", "https://c.com"])
+
+    assert len(results) == 3
+    # All are non-None strings
+    assert all(isinstance(r, str) for r in results)

@@ -76,3 +76,18 @@ class ScraperAPIClient:
                 return response.text
 
         raise ScraperAPIError(f"Retries exhausted: {url}")  # never reached; satisfies type checker
+
+    async def scrape_batch(
+        self,
+        urls: list[str],
+        **kwargs: object,
+    ) -> list[str | None]:
+        async def _scrape_one(url: str) -> str | None:
+            async with self._semaphore:
+                try:
+                    return await self.scrape(url, **kwargs)
+                except ScraperAPIError as exc:
+                    logger.warning("Failed to scrape %s: %s", url, exc)
+                    return None
+
+        return list(await asyncio.gather(*(_scrape_one(url) for url in urls)))
