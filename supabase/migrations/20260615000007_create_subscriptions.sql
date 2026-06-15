@@ -7,11 +7,10 @@ CREATE TABLE subscriptions (
   current_period_start TIMESTAMPTZ,
   current_period_end TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (user_id)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX subscriptions_user_id_idx ON subscriptions (user_id);
+CREATE UNIQUE INDEX subscriptions_user_id_idx ON subscriptions (user_id);
 
 CREATE TRIGGER set_updated_at
   BEFORE UPDATE ON subscriptions
