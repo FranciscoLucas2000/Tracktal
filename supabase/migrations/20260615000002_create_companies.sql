@@ -8,6 +8,9 @@ CREATE TABLE companies (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX companies_name_lower_idx ON companies (lower(name));
+CREATE INDEX companies_country_idx ON companies (country);
+
 ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "authenticated_read" ON companies
