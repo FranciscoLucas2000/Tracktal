@@ -33,6 +33,7 @@ CREATE TABLE job_postings (
 CREATE INDEX job_postings_source_scraped_at_idx ON job_postings (source, scraped_at);
 CREATE INDEX job_postings_company_id_idx ON job_postings (company_id);
 CREATE INDEX job_postings_location_id_idx ON job_postings (location_id);
+CREATE INDEX job_postings_is_normalised_idx ON job_postings (is_normalised);
 CREATE INDEX job_postings_unnormalised_idx ON job_postings (scraped_at)
   WHERE is_normalised = FALSE;
 
