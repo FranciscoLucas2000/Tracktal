@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -114,6 +115,12 @@ export default function ResetPasswordPage() {
           Update password
         </button>
       </form>
+
+      <p className="text-center text-sm">
+        <Link href="/login" className="text-primary hover:underline">
+          ← Back to sign in
+        </Link>
+      </p>
     </div>
   )
 }
