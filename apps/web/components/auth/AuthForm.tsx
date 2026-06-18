@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -112,9 +113,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
         {mode === 'login' && (
           <div className="text-right">
-            <a href="/forgot-password" className="text-xs text-primary hover:underline">
+            <Link href="/forgot-password" className="text-xs text-primary hover:underline">
               Forgot password?
-            </a>
+            </Link>
           </div>
         )}
 
@@ -132,16 +133,16 @@ export default function AuthForm({ mode }: AuthFormProps) {
         {mode === 'login' ? (
           <>
             No account?{' '}
-            <a href="/signup" className="text-primary hover:underline">
+            <Link href="/signup" className="text-primary hover:underline">
               Sign up
-            </a>
+            </Link>
           </>
         ) : (
           <>
             Already have an account?{' '}
-            <a href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary hover:underline">
               Sign in
-            </a>
+            </Link>
           </>
         )}
       </p>
