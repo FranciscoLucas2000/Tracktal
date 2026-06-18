@@ -27,7 +27,7 @@ export function UserMenu({ email }: Props) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="max-w-[180px] truncate text-sm text-muted-foreground hover:text-foreground focus:outline-none">
+      <DropdownMenuTrigger aria-label="Open user menu" className="max-w-[180px] truncate text-sm text-muted-foreground hover:text-foreground focus:outline-none">
         {email}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
