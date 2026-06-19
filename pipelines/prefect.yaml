@@ -1,0 +1,9 @@
+name: tracktal-pipelines
+prefect-version: "3.0.0"
+
+deployments:
+  - name: smoke-test
+    entrypoint: tracktal_pipelines/flows/smoke_test.py:smoke_test
+    work_pool:
+      name: railway-pool
+    schedules: []
