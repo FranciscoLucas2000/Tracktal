@@ -1,83 +1,101 @@
 # TRA-13: Prefect on Railway — Design Spec
 
-**Date:** 2026-06-19
+**Date:** 2026-06-19 (revised 2026-06-20)
 **Ticket:** TRA-13 — T-009: Set up Prefect on Railway
 **Status:** Approved
+
+> **Revision note:** Original design used Prefect Cloud free tier. Prefect Cloud free tier does not support hybrid/process work pools. Design updated to self-hosted Prefect server on Railway.
 
 ---
 
 ## Architecture
 
-Prefect Cloud (free tier, existing account) acts as orchestration server and UI. A single Railway service runs a Prefect process worker that polls Cloud for work.
+Self-hosted Prefect server runs as a Railway service. A second Railway service runs a Prefect process worker polling a `railway-pool` work pool on that server. Worker communicates with the server via Railway private networking (no public internet hop, no bandwidth cost).
 
 ```
-Prefect Cloud (app.prefect.cloud)
-  └── work pool: railway-pool (process type)
-        └── Railway service: tracktal-pipelines
-              └── Prefect worker (uv run prefect worker start --pool railway-pool --type process)
-                    └── Flow runs as subprocess on same container
+Railway Project
+├── prefect-server service
+│   ├── Source: pipelines/ (same repo, same nixpacks/uv build)
+│   ├── Start: uv run prefect server start --host 0.0.0.0 --port 4200
+│   ├── Env: PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://...
+│   └── Public domain: prefect-server-xxx.up.railway.app (UI + local CLI)
+│
+├── tracktal-pipelines service (existing — worker)
+│   ├── Start: uv run prefect worker start --pool railway-pool --type process
+│   └── Env: PREFECT_API_URL=http://prefect-server.railway.internal:4200/api
+│
+└── Postgres (Railway addon)
+    └── Provides DATABASE_URL → used by prefect-server for state storage
 ```
 
-No self-hosted Prefect server. No Docker-in-Docker. No additional Railway services.
+No Prefect Cloud account needed. No API key. No auth (server is on private Railway network; UI is public but read-only risk is acceptable for solo project).
 
 ---
 
 ## Components
 
-### New file: `pipelines/flows/smoke_test.py`
-
-Minimal flow to verify end-to-end plumbing:
-
-```python
-from prefect import flow, get_run_logger
-
-@flow(name="smoke-test")
-def smoke_test():
-    logger = get_run_logger()
-    logger.info("Prefect on Railway: OK")
-    return "ok"
-```
-
 ### Updated: `pipelines/.env.example`
 
-Add two new env vars:
+```
+# Prefect server (self-hosted on Railway)
+# Railway internal URL for worker (set on tracktal-pipelines service):
+PREFECT_API_URL=http://prefect-server.railway.internal:4200/api
+# Public URL for local CLI commands (use Railway-assigned domain):
+# PREFECT_API_URL=https://prefect-server-xxx.up.railway.app/api
+```
 
-```
-PREFECT_API_URL=https://api.prefect.cloud/api/accounts/<account-id>/workspaces/<workspace-id>
-PREFECT_API_KEY=
-```
+Remove `PREFECT_API_KEY` — not needed for self-hosted server.
 
 ### Unchanged
 
-- `pipelines/railway.toml` — deploy command already correct
+- `pipelines/railway.toml` — worker start command already correct
 - `pipelines/nixpacks.toml` — Python 3.12 + uv already correct
 - `pipelines/pyproject.toml` — `prefect>=3.0.0` already declared
+- `pipelines/tracktal_pipelines/flows/smoke_test.py` — flow unchanged
+- `pipelines/prefect.yaml` — deployment config unchanged
 
 ---
 
 ## Manual Setup Steps (one-time, not in code)
 
-1. Create work pool `railway-pool` with type **process** in Prefect Cloud UI
-2. Set `PREFECT_API_URL` and `PREFECT_API_KEY` as Railway service env vars
-3. Deploy smoke test flow:
+### Railway setup
+
+1. Add **Postgres** plugin to Railway project (Database → Add → PostgreSQL)
+2. Create new Railway service `prefect-server`:
+   - Source: same GitHub repo, root `pipelines/`
+   - Override start command: `uv run prefect server start --host 0.0.0.0 --port 4200`
+   - Set env var: `PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://${{PGUSER}}:${{PGPASSWORD}}@${{PGHOST}}:${{PGPORT}}/${{PGDATABASE}}`
+   - Expose public domain (Railway → Settings → Networking → Generate Domain)
+3. On `tracktal-pipelines` service, set:
+   - `PREFECT_API_URL=http://prefect-server.railway.internal:4200/api`
+
+### Work pool + deployment
+
+4. Once `prefect-server` is live, create work pool from local CLI:
    ```
-   uv run prefect deploy pipelines/flows/smoke_test.py:smoke_test --name smoke-test --pool railway-pool
+   $env:PREFECT_API_URL="https://prefect-server-xxx.up.railway.app/api"
+   uv run prefect work-pool create railway-pool --type process
    ```
-4. Trigger run from Prefect Cloud UI and verify success
+5. Deploy smoke-test flow:
+   ```
+   uv run prefect deploy --all
+   ```
 
 ---
 
 ## Error Handling
 
 - `restartPolicyType = "on_failure"` in `railway.toml` auto-restarts worker on crash
-- Missing `PREFECT_API_KEY` → worker fails at startup with clear connection error in Railway logs
-- Wrong `PREFECT_API_URL` → same — connection refused at startup, not silent
+- Wrong `PREFECT_API_URL` on worker → connection refused at startup → visible in Railway logs
+- Prefect server fails to start → check `PREFECT_SERVER_DATABASE_CONNECTION_URL` in Railway logs
+- Railway private networking uses `.railway.internal` hostname — only works between services in same Railway project
 
 ---
 
 ## Success Criteria
 
-1. Railway service deploys without error
-2. Prefect Cloud UI shows `railway-pool` worker as **online**
-3. Smoke test flow triggered from UI → status **Completed**
-4. Log line `"Prefect on Railway: OK"` visible in Prefect Cloud run logs
+1. `prefect-server` Railway service deploys and UI accessible at public domain
+2. `tracktal-pipelines` worker logs: `Worker 'ProcessWorker ...' started!`
+3. Prefect server UI shows `railway-pool` worker as **online**
+4. Smoke test flow triggered from UI → status **Completed**
+5. Log line `"Prefect on Railway: OK"` visible in Prefect server run logs

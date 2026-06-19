@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Connect a Railway process worker to Prefect Cloud and verify a smoke-test flow runs end-to-end.
+**Goal:** Deploy a self-hosted Prefect server on Railway and verify a smoke-test flow runs end-to-end via a Railway process worker.
 
-**Architecture:** Prefect Cloud (free tier, existing account) acts as orchestration server and UI. A single Railway service runs a Prefect process worker polling work pool `railway-pool`. Flows live in `tracktal_pipelines/flows/` (installed Python package, available on Railway worker via editable install).
+**Architecture:** Self-hosted Prefect server runs as a Railway service backed by Railway Postgres. Existing `tracktal-pipelines` Railway service runs a Prefect process worker pointing to the server via Railway private networking. Prefect Cloud not used.
 
-**Tech Stack:** Prefect 3.x, Railway (nixpacks + process worker), uv, pytest, `prefect.testing.utilities`
+**Tech Stack:** Prefect 3.x, Railway (nixpacks + two services + Postgres addon), uv, pytest, `prefect.testing.utilities`
 
 ---
 
@@ -14,12 +14,12 @@
 
 | Action | Path | Purpose |
 |--------|------|---------|
-| Modify | `pipelines/.env.example` | Document Prefect env vars |
+| Modify | `pipelines/.env.example` | Document Prefect env vars (self-hosted Railway URL) |
 | Delete | `pipelines/flows/.gitkeep` | Flows move into package, not top-level dir |
 | Create | `pipelines/tracktal_pipelines/flows/__init__.py` | Make flows a Python subpackage |
 | Create | `pipelines/tracktal_pipelines/flows/smoke_test.py` | Smoke test flow |
 | Create | `pipelines/tests/test_smoke_test.py` | Unit test for smoke flow |
-| Create | `pipelines/prefect.yaml` | Deployment config for Prefect Cloud |
+| Create | `pipelines/prefect.yaml` | Deployment config for self-hosted Prefect server |
 
 ---
 
@@ -191,112 +191,147 @@ git commit -m "feat(TRA-13): add prefect.yaml with smoke-test deployment"
 
 ---
 
-### Task 5: Prefect Cloud work pool setup (manual — browser)
+### Task 5: Update .env.example for self-hosted server
 
-No code changes. Steps in browser at [app.prefect.cloud](https://app.prefect.cloud).
+**Files:**
+- Modify: `pipelines/.env.example`
 
-- [ ] **Step 1: Create work pool**
+> **Revision:** Prefect Cloud free tier blocks process work pools. Switching to self-hosted Prefect server on Railway.
 
-Navigate to **Work Pools** → **+ Create work pool**
-- Name: `railway-pool`
-- Type: **Process**
-- Click **Next** → **Create**
+- [ ] **Step 1: Update Prefect vars in .env.example**
 
-- [ ] **Step 2: Create API key**
+Replace the `# Prefect Cloud` block with:
 
-Navigate to **Settings** → **API Keys** → **+ Create API Key**
-- Name: `railway-worker`
-- Copy the key — it is shown only once
+```
+# Prefect (self-hosted server on Railway)
+# Worker env var — Railway internal networking (set on tracktal-pipelines service in Railway):
+PREFECT_API_URL=http://prefect-server.railway.internal:4200/api
+# For local CLI commands, use the public Railway domain instead:
+# PREFECT_API_URL=https://prefect-server-xxx.up.railway.app/api
+```
 
-- [ ] **Step 3: Copy workspace API URL**
+Remove `PREFECT_API_KEY` — not needed for self-hosted server.
 
-Navigate to **Settings** → **Workspaces** → copy the **API URL**
+- [ ] **Step 2: Run tests to confirm no regressions**
 
-Format: `https://api.prefect.cloud/api/accounts/<uuid>/workspaces/<uuid>`
+```bash
+cd pipelines && uv run pytest -v
+```
 
-Keep both values for Task 6.
+Expected: all tests pass
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add pipelines/.env.example
+git commit -m "chore(TRA-13): update env example for self-hosted Prefect server on Railway"
+```
 
 ---
 
-### Task 6: Configure Railway env vars (manual — Railway dashboard)
+### Task 6: Railway infrastructure setup (manual — Railway dashboard)
 
 No code changes. Steps in [railway.app](https://railway.app) dashboard.
 
-- [ ] **Step 1: Open service variables**
+- [ ] **Step 1: Add Postgres addon**
 
-Railway project → `tracktal-pipelines` service → **Variables** tab
+Railway project → **+ New** → **Database** → **Add PostgreSQL**. Wait for it to provision.
 
-- [ ] **Step 2: Add both variables**
+- [ ] **Step 2: Create prefect-server service**
 
-| Variable | Value |
-|----------|-------|
-| `PREFECT_API_URL` | URL from Task 5 Step 3 |
-| `PREFECT_API_KEY` | Key from Task 5 Step 2 |
+Railway project → **+ New** → **GitHub Repo** → same repo → set **Root Directory** to `pipelines`
 
-- [ ] **Step 3: Watch redeploy logs**
+- [ ] **Step 3: Configure prefect-server service**
 
-Railway redeploys automatically. In **Deployments** tab, watch logs for:
+In the new service → **Settings**:
+- Name: `prefect-server`
+- Start command: `uv run prefect server start --host 0.0.0.0 --port 4200`
+
+In **Variables** tab, add:
+```
+PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://${{PGUSER}}:${{PGPASSWORD}}@${{PGHOST}}:${{PGPORT}}/${{PGDATABASE}}
+```
+
+Railway resolves `${{PGUSER}}` etc. from the Postgres addon automatically.
+
+- [ ] **Step 4: Expose public domain**
+
+`prefect-server` service → **Settings** → **Networking** → **Generate Domain**
+
+Copy the domain (e.g. `prefect-server-production-xxxx.up.railway.app`).
+
+- [ ] **Step 5: Wait for prefect-server to deploy**
+
+Watch deployment logs. Expected:
+
+```
+Starting Prefect server on http://0.0.0.0:4200
+```
+
+- [ ] **Step 6: Configure tracktal-pipelines worker env var**
+
+`tracktal-pipelines` service → **Variables** → add:
+
+```
+PREFECT_API_URL=http://prefect-server.railway.internal:4200/api
+```
+
+Remove `PREFECT_API_KEY` if previously set. Watch redeploy logs for:
 
 ```
 Worker 'ProcessWorker ...' started!
 ```
 
-If you see a connection error instead, verify `PREFECT_API_URL` has no trailing slash and the key is correct.
-
 ---
 
-### Task 7: Push branch, deploy flow, verify end-to-end
+### Task 7: Create work pool, deploy flow, verify end-to-end
 
-- [ ] **Step 1: Push branch to remote**
+- [ ] **Step 1: Set local PREFECT_API_URL to public domain**
+
+```powershell
+$env:PREFECT_API_URL="https://prefect-server-production-xxxx.up.railway.app/api"
+```
+
+Replace with real domain from Task 6 Step 4.
+
+- [ ] **Step 2: Create work pool via CLI**
 
 ```bash
-git push -u origin feature/TRA-13-prefect-railway-setup
+cd pipelines && uv run prefect work-pool create railway-pool --type process
 ```
 
-This triggers a Railway redeploy from the feature branch (if Railway is watching this branch). If Railway only watches `main`, the Railway service is already running from the previous tasks — proceed to Step 2.
+Expected: `Created work pool 'railway-pool'!`
 
-- [ ] **Step 2: Set local env vars for deploy command**
-
-Copy `pipelines/.env.example` to `pipelines/.env` and fill in `PREFECT_API_URL` and `PREFECT_API_KEY` with real values. The `.env` file is gitignored.
-
-- [ ] **Step 3: Deploy flow to Prefect Cloud**
+- [ ] **Step 3: Deploy smoke-test flow**
 
 ```bash
-cd pipelines && uv run prefect deploy --all
+uv run prefect deploy --all
 ```
 
-Expected output:
+Expected: `Successfully created/updated all deployments!`
 
-```
-Successfully created/updated all deployments!
+- [ ] **Step 4: Verify worker online in Prefect UI**
 
-                          Deployments
-┏━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓
-┃ Name                   ┃ Status        ┃ Details            ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━┩
-│ smoke-test/smoke-test  │ ✅ Applied    │ railway-pool       │
-└────────────────────────┴───────────────┴────────────────────┘
-```
+Navigate to `https://prefect-server-production-xxxx.up.railway.app` → **Work Pools** → `railway-pool` → **Workers** tab.
 
-- [ ] **Step 4: Verify worker is online in Prefect Cloud**
+Expected: worker with status **Online**.
 
-Navigate to **Work Pools** → `railway-pool` → **Workers** tab.
+- [ ] **Step 5: Trigger smoke test run**
 
-Expected: worker listed with status **Online**. If **Offline**, check Railway logs for connection errors.
-
-- [ ] **Step 5: Trigger smoke test run from UI**
-
-Navigate to **Deployments** → `smoke-test` → **Run** → **Quick Run** → **Submit**.
+Prefect UI → **Deployments** → `smoke-test` → **Run** → **Quick Run** → **Submit**.
 
 - [ ] **Step 6: Verify run completes**
 
-Navigate to **Flow Runs** → find the new run.
+Prefect UI → **Flow Runs** → find the run.
 
 Expected:
 - Status: **Completed**
 - **Logs** tab contains: `Prefect on Railway: OK`
 
-- [ ] **Step 7: Open PR and update Linear**
+- [ ] **Step 7: Push updated branch**
 
-Open PR on GitHub from `feature/TRA-13-prefect-railway-setup` → link to TRA-13 in description.
-Set Linear ticket TRA-13 to **In Review**.
+```bash
+git push
+```
+
+PR #12 already open — architecture change is self-contained in commits.
